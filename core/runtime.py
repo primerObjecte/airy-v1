@@ -45,24 +45,15 @@ class AiryRuntime:
             if b"GET /health" in request:
                 ok = (self.client is not None and self.client.is_connected() and self.loader.modules and not getattr(self, "_stopping", False))
                 status = 200 if ok else 503
-                writer.write(f"HTTP/1.1 {status} OK
-Content-Length: 2
-
-ok".encode())
+                writer.write(f"HTTP/1.1 {status} OK\nContent-Length: 2\n\nok".encode())
             else:
-                writer.write(b"HTTP/1.1 404 Not Found
-
-")
+                writer.write(b"HTTP/1.1 404 Not Found\n\n")
             await writer.drain()
         except asyncio.TimeoutError:
-            writer.write(b"HTTP/1.1 408 Request Timeout
-
-")
+            writer.write(b"HTTP/1.1 408 Request Timeout\n\n")
         except Exception as e:
             log.warning(f"Healthcheck handler error: {e}")
-            writer.write(b"HTTP/1.1 500 Internal Server Error
-
-")
+            writer.write(b"HTTP/1.1 500 Internal Server Error\n\n")
         finally:
             try:
                 writer.close()
