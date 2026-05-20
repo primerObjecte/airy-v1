@@ -17,6 +17,8 @@ from .tasks import TaskManager
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("telethon.client.updates").setLevel(logging.WARNING)
+logging.getLogger("telethon.network").setLevel(logging.WARNING)
 
 
 class AiryRuntime:
@@ -123,7 +125,48 @@ class AiryRuntime:
                             backoff = min(backoff * 2, max_backoff)
 
     async def _handle_message(self, event):
-        return
+        """Handle incoming messages and dispatch commands"""
+        try:
+            # Ignore outgoing messages
+            if event.out:
+                return
+
+            message = event.message
+            if not message.text:
+                return
+
+            # Check if message starts with command prefix
+            if not message.text.startswith(self.config.cmd_prefix):
+                return
+
+            # Check if sender is owner
+            if event.sender_id != self.config.owner_id:
+                return
+
+            # Parse command
+            text = message.text[len(self.config.cmd_prefix):].strip()
+            parts = text.split(None, 1)
+            if not parts:
+                return
+
+            command = parts[0]
+            args = parts[1] if len(parts) > 1 else ""
+
+            # Emit command event for modules
+            from .events import Event
+            await self.event_bus.emit(Event(
+                "command",
+                {
+                    "command": command,
+                    "args": args,
+                    "event": event,
+                    "message": message,
+                    "sender_id": event.sender_id,
+                }
+            ))
+        except Exception as e:
+            log.error(f"Message handler error: {e}")
+            await self.diag.log_error("message_handler", str(e))
 
     def _setup_signal_handlers(self):
         loop = asyncio.get_running_loop()
